@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Afinador de Guitarra Pro</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+    :root {
+      --bg: #0B0C10;
+      --card: #151722;
+      --accent: #6C5CE7;
+      --accent-glow: rgba(108, 92, 231, 0.35);
+      --text: #F1F2F6;
+      --text-dim: #8E92A2;
+      --green: #00E676;
+      --green-glow: rgba(0, 230, 118, 0.4);
+      --red: #FF5252;
+      --yellow: #FFD600;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      background-image: radial-gradient(circle at 50% 20%, rgba(108, 92, 231, 0.08) 0%, transparent 60%);
+    }
+
+    .tuner-card {
+      background: var(--card);
+      width: 100%;
+      max-width: 440px;
+      border-radius: 36px;
+      padding: 36px 28px;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.05);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    /* Animated Radial Gauge & Hz Display */
+    .gauge-wrapper {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gauge-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .gauge-bg {
+      fill: none;
+      stroke: #202434;
+      stroke-width: 12;
+      stroke-dasharray: 565; /* 2 * PI * 90 */
+      stroke-dashoffset: 141; /* 3/4 circle */
+      stroke-linecap: round;
+      transform-origin: center;
+      transform: rotate(135deg);
+    }
+
+    .gauge-fill {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 12;
+      stroke-dasharray: 565;
+      stroke-dashoffset: 423; /* Centered initial state */
+      stroke-linecap: round;
+      transform-origin: center;
+      transform: rotate(135deg);
+      transition: stroke-dashoffset 0.1s cubic-bezier(0.1, 0.9, 0.2, 1), stroke 0.25s ease, filter 0.25s ease;
+      filter: drop-shadow(0 0 8px var(--accent-glow));
+    }
+
+    /* Inner Display */
+    .note-display {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .note-name {
+      font-size: 4.8rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -2px;
+      transition: color 0.25s ease, transform 0.15s ease;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .frequency-container {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      margin-top: 4px;
+      background: rgba(0,0,0,0.3);
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .frequency-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.5px;
+      min-width: 80px;
+      text-align: right;
+    }
+
+    .frequency-unit {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+
+    .cents-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: #202434;
+      color: var(--text-dim);
+      margin-top: 6px;
+      transition: all 0.25s ease;
+    }
+
+    /* Buttons */
+    .btn-main {
+      background: var(--accent);
+      color: white;
+      border: none;
+      height: 56px;
+      border-radius: 28px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      box-shadow: 0 10px 25px var(--accent-glow);
+      transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .btn-main:hover { transform: translateY(-2px); filter: brightness(1.1); }
+    .btn-main:active { transform: translateY(0); }
+
+    /* Circular Reference Buttons */
+    .reference-section {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .reference-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+    }
+
+    .strings-grid {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .string-btn {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #202434;
+      border: 2px solid transparent;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .string-btn .name { font-size: 1rem; font-weight: 800; line-height: 1; }
+    .string-btn .num { font-size: 0.65rem; font-weight: 600; color: var(--text-dim); margin-top: 2px; }
+
+    .string-btn:hover {
+      transform: translateY(-3px);
+      border-color: rgba(108, 92, 231, 0.5);
+      background: #282C40;
+    }
+
+    .string-btn.active {
+      border-color: var(--accent);
+      background: var(--accent);
+      box-shadow: 0 0 20px var(--accent-glow);
+      transform: scale(1.08);
+    }
+
+    .string-btn.active .num { color: rgba(255,255,255,0.8); }
+
+    /* In-Tune Visual State */
+    .in-tune .gauge-fill {
+      stroke: var(--green);
+      filter: drop-shadow(0 0 12px var(--green-glow));
+    }
+    .in-tune .note-name { color: var(--green); transform: scale(1.05); }
+    .in-tune .cents-badge { background: rgba(0, 230, 118, 0.15); color: var(--green); }
+  </style>
+</head>
+<body>
+
+  <div class="tuner-card" id="tunerCard">
+    <h1>Afinador Pro</h1>
+
+    <!-- Precision Animated Gauge & Pitch Counter -->
+    <div class="gauge-wrapper">
+      <svg class="gauge-svg" viewBox="0 0 200 200">
+        <circle class="gauge-bg" cx="100" cy="100" r="90"></circle>
+        <circle class="gauge-fill" id="gaugeFill" cx="100" cy="100" r="90"></circle>
+      </svg>
+
+      <div class="note-display">
+        <div class="note-name" id="noteDisplay">--</div>
+        <div class="frequency-container">
+          <span class="frequency-val" id="freqDisplay">000.00</span>
+          <span class="frequency-unit">Hz</span>
+        </div>
+        <div class="cents-badge" id="centsDisplay">MIC INACTIVO</div>
+      </div>
+    </div>
+
+    <button class="btn-main" id="micBtn">Iniciar Micrófono</button>
+
+    <!-- Round Reference Tone Buttons -->
+    <div class="reference-section">
+      <span class="reference-title">AFINACIÓN ESTÁNDAR (OÍDO)</span>
+      <div class="strings-grid">
+        <button class="string-btn" onclick="playPluckedGuitar(329.63, 'E4', this)"><span class="name">E</span><span class="num">1ª</span></button>
+        <button class="string-btn" onclick="playPluckedGuitar(246.94, 'B3', this)"><span class="name">B</span><span class="num">2ª</span></button>
+        <button class="string-btn" onclick="playPluckedGuitar(196.00, 'G3', this)"><span class="name">G</span><span class="num">3ª</span></button>
+        <button class="string-btn" onclick="playPluckedGuitar(146.83, 'D3', this)"><span class="name">D</span><span class="num">4ª</span></button>
+        <button class="string-btn" onclick="playPluckedGuitar(110.00, 'A2', this)"><span class="name">A</span><span class="num">5ª</span></button>
+        <button class="string-btn" onclick="playPluckedGuitar(82.41, 'E2', this)"><span class="name">E</span><span class="num">6ª</span></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const NOTE_STRINGS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    
+    let audioCtx = null;
+    let analyser = null;
+    let micStream = null;
+    let isListening = false;
+    let displayedFreq = 0;
+
+    const micBtn = document.getElementById('micBtn');
+    const noteDisplay = document.getElementById('noteDisplay');
+    const freqDisplay = document.getElementById('freqDisplay');
+    const centsDisplay = document.getElementById('centsDisplay');
+    const gaugeFill = document.getElementById('gaugeFill');
+    const tunerCard = document.getElementById('tunerCard');
+
+    // Toggle Microphone Input
+    micBtn.addEventListener('click', async () => {
+      if (!isListening) {
+        await startTuning();
+      } else {
+        stopTuning();
+      }
+    });
+
+    async function startTuning() {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        micStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } 
+        });
+        
+        const source = audioCtx.createMediaStreamSource(micStream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 4096; // Increased FFT size for higher accuracy in low frequencies
+        source.connect(analyser);
+
+        isListening = true;
+        micBtn.innerText = "Detener Micrófono";
+        micBtn.style.background = "#FF5252";
+        centsDisplay.innerText = "TOCA UNA CUERDA";
+        
+        updatePitch();
+      } catch (err) {
+        alert("Error al acceder al micrófono. Por favor otorga los permisos necesarios.");
+      }
+    }
+
+    function stopTuning() {
+      if (micStream) micStream.getTracks().forEach(track => track.stop());
+      if (audioCtx) audioCtx.close();
+      isListening = false;
+      micBtn.innerText = "Iniciar Micrófono";
+      micBtn.style.background = "var(--accent)";
+      noteDisplay.innerText = "--";
+      freqDisplay.innerText = "000.00";
+      centsDisplay.innerText = "MIC INACTIVO";
+      gaugeFill.style.strokeDashoffset = "423";
+      tunerCard.classList.remove('in-tune');
+    }
+
+    // High-Precision Autocorrelation Pitch Detection
+    function autoCorrelate(buf, sampleRate) {
+      let SIZE = buf.length;
+      let rms = 0;
+
+      for (let i = 0; i < SIZE; i++) {
+        let val = buf[i];
+        rms += val * val;
+      }
+      rms = Math.sqrt(rms / SIZE);
+      if (rms < 0.01) return -1; // Audio too quiet
+
+      let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+      for (let i = 0; i < SIZE / 2; i++) {
+        if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+      }
+      for (let i = 1; i < SIZE / 2; i++) {
+        if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
+      }
+
+      buf = buf.slice(r1, r2);
+      SIZE = buf.length;
+
+      let c = new Array(SIZE).fill(0);
+      for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE - i; j++) {
+          c[i] = c[i] + buf[j] * buf[j + i];
+        }
+      }
+
+      let d = 0; while (c[d] > c[d + 1]) d++;
+      let maxval = -1, maxpos = -1;
+      for (let i = d; i < SIZE; i++) {
+        if (c[i] > maxval) {
+          maxval = c[i];
+          maxpos = i;
+        }
+      }
+      let T0 = maxpos;
+
+      // Parabolic interpolation for sub-sample precision
+      let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+      let a = (x1 + x3 - 2 * x2) / 2;
+      let b = (x3 - x1) / 2;
+      if (a) T0 = T0 - b / (2 * a);
+
+      return sampleRate / T0;
+    }
+
+    function updatePitch() {
+      if (!isListening) return;
+
+      const buf = new Float32Array(4096);
+      analyser.getFloatTimeDomainData(buf);
+      const pitch = autoCorrelate(buf, audioCtx.sampleRate);
+
+      if (pitch !== -1 && pitch > 60 && pitch < 1000) {
+        // Smooth transition for Hz counter animation
+        displayedFreq += (pitch - displayedFreq) * 0.25;
+        freqDisplay.innerText = displayedFreq.toFixed(2);
+
+        const noteNum = 12 * (Math.log(pitch / 440) / Math.log(2)) + 69;
+        const midiNote = Math.round(noteNum);
+        const noteName = NOTE_STRINGS[midiNote % 12];
+        const idealFreq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        const cents = Math.floor((1200 * Math.log(pitch / idealFreq)) / Math.log(2));
+
+        noteDisplay.innerText = noteName;
+
+        // Gauge radial offset calculation (-50 cents to +50 cents -> Dashoffset 565 to 282)
+        const clampedCents = Math.max(-50, Math.min(50, cents));
+        const normalizedCents = (clampedCents + 50) / 100; // 0 to 1
+        // Gauge arc range: offset 523 (flat) to 323 (sharp), center is 423
+        const dashOffset = 523 - (normalizedCents * 200);
+        gaugeFill.style.strokeDashoffset = dashOffset;
+
+        if (Math.abs(cents) <= 3) {
+          centsDisplay.innerText = "AFINADO";
+          tunerCard.classList.add('in-tune');
+        } else {
+          centsDisplay.innerText = cents > 0 ? `+${cents} CENTS (ALTO)` : `${cents} CENTS (BAJO)`;
+          tunerCard.classList.remove('in-tune');
+        }
+      }
+
+      requestAnimationFrame(updatePitch);
+    }
+
+    // Realistic Plucked Guitar Physical Modeling (Karplus-Strong Algorithm)
+    function playPluckedGuitar(freq, note, btnElement) {
+      document.querySelectorAll('.string-btn').forEach(b => b.classList.remove('active'));
+      btnElement.classList.add('active');
+
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const sampleRate = ctx.sampleRate;
+      const period = Math.round(sampleRate / freq);
+      const bufferSize = sampleRate * 3.5; // 3.5 seconds decay
+      const buffer = ctx.createBuffer(1, bufferSize, sampleRate);
+      const data = buffer.getChannelData(0);
+
+      // Noise burst for the initial pick/string pluck
+      for (let i = 0; i < period; i++) {
+        data[i] = (Math.random() * 2 - 1);
+      }
+
+      // Karplus-Strong feedback loop with low-pass filter (string resonance decay)
+      let damping = 0.992 - (freq / 30000); // Natural high-frequency damping
+      for (let i = period; i < bufferSize; i++) {
+        data[i] = (data[i - period] + data[i - period + 1]) * 0.5 * damping;
+      }
+
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+
+      // Soft Gain envelope
+      const gainNode = ctx.createGain();
+      gainNode.gain.setValueAtTime(0.8, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3.5);
+
+      source.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      source.start();
+
+      setTimeout(() => {
+        btnElement.classList.remove('active');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
