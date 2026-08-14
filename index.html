@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Afinador de Guitarra Online</title>
+  <style>
+    :root {
+      --bg: #12131C;
+      --card: #1E202D;
+      --accent: #6C5CE7;
+      --text: #F1F2F6;
+      --text-dim: #A0A5B5;
+      --green: #00B894;
+      --red: #FF7675;
+      --yellow: #FDCB6E;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+
+    .tuner-card {
+      background: var(--card);
+      width: 100%;
+      max-width: 480px;
+      border-radius: 24px;
+      padding: 32px 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.5px; }
+
+    /* Dial Gauge */
+    .gauge-container { position: relative; width: 100%; height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+    .gauge-arc { width: 240px; height: 120px; border: 4px solid #2D3045; border-bottom: none; border-radius: 240px 240px 0 0; position: relative; }
+    .needle {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 4px;
+      height: 100px;
+      background: var(--text-dim);
+      transform-origin: bottom center;
+      transform: translateX(-50%) rotate(0deg);
+      transition: transform 0.1s ease-out, background-color 0.2s;
+      border-radius: 4px;
+    }
+
+    /* Note Display */
+    .note-display { position: relative; margin-top: -30px; }
+    .note-name { font-size: 4rem; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+    .frequency { font-size: 1rem; color: var(--text-dim); margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .cents-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: #2D3045;
+      color: var(--text-dim);
+      margin-top: 8px;
+    }
+
+    /* Controls & Buttons */
+    .btn-main {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 50px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-main:active { transform: scale(0.98); }
+
+    .strings-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 8px; }
+    .string-btn {
+      background: #2D3045;
+      border: 2px solid transparent;
+      color: var(--text);
+      padding: 12px 0;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      transition: all 0.2s;
+    }
+    .string-btn .name { font-size: 1.1rem; font-weight: 700; }
+    .string-btn .num { font-size: 0.75rem; color: var(--text-dim); }
+    .string-btn.active { border-color: var(--accent); background: rgba(108, 92, 231, 0.15); }
+
+    /* In-Tune State */
+    .in-tune .needle { background: var(--green); }
+    .in-tune .note-name { color: var(--green); }
+    .in-tune .cents-badge { background: rgba(0, 184, 148, 0.2); color: var(--green); }
+  </style>
+</head>
+<body>
+
+  <div class="tuner-card" id="tunerCard">
+    <h1>Afinador de Guitarra</h1>
+
+    <!-- Visual Gauge -->
+    <div class="gauge-container">
+      <div class="gauge-arc">
+        <div class="needle" id="needle"></div>
+      </div>
+    </div>
+
+    <!-- Readout -->
+    <div class="note-display">
+      <div class="note-name" id="noteDisplay">--</div>
+      <div class="frequency" id="freqDisplay">0.0 Hz</div>
+      <div class="cents-badge" id="centsDisplay">Esperando micrófono...</div>
+    </div>
+
+    <button class="btn-main" id="micBtn">Iniciar Micrófono</button>
+
+    <!-- Reference Strings Player -->
+    <div>
+      <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 12px;">O Toca una cuerda de referencia:</p>
+      <div class="strings-grid">
+        <button class="string-btn" onclick="playTone(329.63, 'E4', this)"><span class="name">E</span><span class="num">1ª</span></button>
+        <button class="string-btn" onclick="playTone(246.94, 'B3', this)"><span class="name">B</span><span class="num">2ª</span></button>
+        <button class="string-btn" onclick="playTone(196.00, 'G3', this)"><span class="name">G</span><span class="num">3ª</span></button>
+        <button class="string-btn" onclick="playTone(146.83, 'D3', this)"><span class="name">D</span><span class="num">4ª</span></button>
+        <button class="string-btn" onclick="playTone(110.00, 'A2', this)"><span class="name">A</span><span class="num">5ª</span></button>
+        <button class="string-btn" onclick="playTone(82.41, 'E2', this)"><span class="name">E</span><span class="num">6ª</span></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const NOTE_STRINGS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    
+    let audioCtx = null;
+    let analyser = null;
+    let micStream = null;
+    let isListening = false;
+    let activeOscillator = null;
+
+    const micBtn = document.getElementById('micBtn');
+    const noteDisplay = document.getElementById('noteDisplay');
+    const freqDisplay = document.getElementById('freqDisplay');
+    const centsDisplay = document.getElementById('centsDisplay');
+    const needle = document.getElementById('needle');
+    const tunerCard = document.getElementById('tunerCard');
+
+    // Toggle Microphone Input
+    micBtn.addEventListener('click', async () => {
+      if (!isListening) {
+        await startTuning();
+      } else {
+        stopTuning();
+      }
+    });
+
+    async function startTuning() {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        
+        const source = audioCtx.createMediaStreamSource(micStream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+
+        isListening = true;
+        micBtn.innerText = "Detener Micrófono";
+        micBtn.style.background = "#FF7675";
+        centsDisplay.innerText = "Toca una cuerda";
+        
+        updatePitch();
+      } catch (err) {
+        alert("Error al acceder al micrófono. Por favor permite el acceso para continuar.");
+      }
+    }
+
+    function stopTuning() {
+      if (micStream) micStream.getTracks().forEach(track => track.stop());
+      if (audioCtx) audioCtx.close();
+      isListening = false;
+      micBtn.innerText = "Iniciar Micrófono";
+      micBtn.style.background = "var(--accent)";
+      noteDisplay.innerText = "--";
+      freqDisplay.innerText = "0.0 Hz";
+      centsDisplay.innerText = "Esperando micrófono...";
+      needle.style.transform = "translateX(-50%) rotate(0deg)";
+      tunerCard.classList.remove('in-tune');
+    }
+
+    // Auto-correlation Algorithm for Pitch Detection
+    function autoCorrelate(buf, sampleRate) {
+      let SIZE = buf.length;
+      let rms = 0;
+
+      for (let i = 0; i < SIZE; i++) {
+        let val = buf[i];
+        rms += val * val;
+      }
+      rms = Math.sqrt(rms / SIZE);
+      if (rms < 0.01) return -1; // Signal too quiet
+
+      let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+      for (let i = 0; i < SIZE / 2; i++) {
+        if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+      }
+      for (let i = 1; i < SIZE / 2; i++) {
+        if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
+      }
+
+      buf = buf.slice(r1, r2);
+      SIZE = buf.length;
+
+      let c = new Array(SIZE).fill(0);
+      for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE - i; j++) {
+          c[i] = c[i] + buf[j] * buf[j + i];
+        }
+      }
+
+      let d = 0; while (c[d] > c[d + 1]) d++;
+      let maxval = -1, maxpos = -1;
+      for (let i = d; i < SIZE; i++) {
+        if (c[i] > maxval) {
+          maxval = c[i];
+          maxpos = i;
+        }
+      }
+      let T0 = maxpos;
+
+      return sampleRate / T0;
+    }
+
+    function updatePitch() {
+      if (!isListening) return;
+
+      const buf = new Float32Array(2048);
+      analyser.getFloatTimeDomainData(buf);
+      const pitch = autoCorrelate(buf, audioCtx.sampleRate);
+
+      if (pitch !== -1) {
+        const noteNum = 12 * (Math.log(pitch / 440) / Math.log(2)) + 69;
+        const midiNote = Math.round(noteNum);
+        const noteName = NOTE_STRINGS[midiNote % 12];
+        const idealFreq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        const cents = Math.floor((1200 * Math.log(pitch / idealFreq)) / Math.log(2));
+
+        noteDisplay.innerText = noteName;
+        freqDisplay.innerText = `${pitch.toFixed(1)} Hz`;
+
+        // Needle rotation (-50 to +50 cents mapped to -60 to +60 degrees)
+        const angle = Math.max(-60, Math.min(60, cents * 1.2));
+        needle.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+
+        if (Math.abs(cents) < 5) {
+          centsDisplay.innerText = "Afinado";
+          tunerCard.classList.add('in-tune');
+        } else {
+          centsDisplay.innerText = cents > 0 ? `+${cents} cents (Muy alto)` : `${cents} cents (Muy bajo)`;
+          tunerCard.classList.remove('in-tune');
+        }
+      }
+
+      requestAnimationFrame(updatePitch);
+    }
+
+    // Reference Tone Player
+    function playTone(freq, note, btnElement) {
+      if (activeOscillator) {
+        activeOscillator.stop();
+        activeOscillator = null;
+        document.querySelectorAll('.string-btn').forEach(b => b.classList.remove('active'));
+        return;
+      }
+
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle'; // Smooth waveform for acoustic sound
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      activeOscillator = osc;
+      btnElement.classList.add('active');
+
+      // Stop after 3 seconds automatically
+      setTimeout(() => {
+        if (activeOscillator === osc) {
+          osc.stop();
+          activeOscillator = null;
+          btnElement.classList.remove('active');
+        }
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
